@@ -1,0 +1,8 @@
+sdk/
+tools/
+build/
+gen/
+classes/
+*.zip
+*.jks
+*.pass
