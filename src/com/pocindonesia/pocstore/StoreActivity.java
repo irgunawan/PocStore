@@ -4,14 +4,13 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.Context;
-import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,88 +24,146 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
+    private static final String CATALOG_URL = "https://portal.irgun.web.id/api/pocstore";
     private static final String GITHUB_APK_LIST =
             "https://api.github.com/repos/irgunawan/PocDial/contents/apk";
     private static final String FALLBACK_DIAL_URL =
             "https://raw.githubusercontent.com/irgunawan/PocDial/master/apk/POC-DIAL-v1.0.apk";
     private static final String OTA_CHECK =
             "https://ota.irgun.web.id/check.php?pkg=com.pocindonesia.pocstore";
-    private static final String OTA_PTTIN =
-            "https://ota.irgun.web.id/app.apk?pkg=id.irgun.pttin";
-
-    private static final int[] BUTTON_IDS = {
-            R.id.btnDial, R.id.btnPttin, R.id.btnUpdate, R.id.btnAbout
-    };
 
     private TextView status;
+    private LinearLayout appList;
     private DownloadManager downloadManager;
-    private volatile String dialUrl = FALLBACK_DIAL_URL;
+    private final java.util.ArrayList<Button> nav = new java.util.ArrayList<Button>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_store);
         status = (TextView) findViewById(R.id.status);
+        appList = (LinearLayout) findViewById(R.id.appList);
         downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-
-        findViewById(R.id.btnDial).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                download(dialUrl, "POC-DIAL-v1.0.apk");
-            }
-        });
-        findViewById(R.id.btnPttin).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                download(OTA_PTTIN, "PTTin-v1.7.0.apk");
-            }
-        });
-        findViewById(R.id.btnUpdate).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { checkSelfUpdate(); }
-        });
-        findViewById(R.id.btnAbout).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                new AlertDialog.Builder(StoreActivity.this)
-                        .setTitle("POC STORE")
-                        .setMessage(R.string.about_text)
-                        .setPositiveButton("OK", null)
-                        .show();
-            }
-        });
-
-        findViewById(R.id.btnDial).requestFocus();
-        refreshFromGitHub();
+        loadCatalog();
     }
 
-    private void refreshFromGitHub() {
+    private void loadCatalog() {
+        status.setText("Memuat katalog dari portal…");
         new Thread(new Runnable() {
             public void run() {
-                String text;
+                JSONArray apps = null;
+                String source = "portal.irgun.web.id";
                 try {
-                    String body = httpGet(GITHUB_APK_LIST);
-                    JSONArray arr = new JSONArray(body);
-                    for (int i = 0; i < arr.length(); i++) {
-                        JSONObject o = arr.getJSONObject(i);
-                        String name = o.optString("name", "");
-                        String url = o.optString("download_url", "");
-                        if (name.endsWith(".apk") && url.length() > 0) {
-                            dialUrl = url;
-                            break;
+                    String body = httpGet(CATALOG_URL);
+                    apps = new JSONObject(body).optJSONArray("apps");
+                } catch (Throwable ignored) {}
+
+                if (apps == null || apps.length() == 0) {
+                    source = "GitHub (cadangan)";
+                    apps = new JSONArray();
+                    try {
+                        JSONArray files = new JSONArray(httpGet(GITHUB_APK_LIST));
+                        for (int i = 0; i < files.length(); i++) {
+                            JSONObject o = files.getJSONObject(i);
+                            String nm = o.optString("name", "");
+                            String url = o.optString("download_url", "");
+                            if (nm.endsWith(".apk") && url.length() > 0) {
+                                JSONObject item = new JSONObject();
+                                item.put("nama", "POC DIAL");
+                                item.put("versi", "1.0");
+                                item.put("url", url);
+                                apps.put(item);
+                                break;
+                            }
                         }
+                    } catch (Throwable ignored) {}
+                    if (apps.length() == 0) {
+                        try {
+                            JSONObject item = new JSONObject();
+                            item.put("nama", "POC DIAL");
+                            item.put("versi", "1.0");
+                            item.put("url", FALLBACK_DIAL_URL);
+                            apps.put(item);
+                        } catch (Throwable ignored) {}
                     }
-                    text = "GitHub: POC DIAL siap diunduh";
-                } catch (Throwable t) {
-                    text = "GitHub tak terjangkau · memakai URL cadangan";
                 }
-                final String statusText = text;
-                runOnUiThread(new Runnable() {
-                    public void run() { status.setText(statusText); }
-                });
+                renderApps(apps, source);
             }
         }).start();
     }
 
+    private void renderApps(final JSONArray apps, final String source) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                appList.removeAllViews();
+                nav.clear();
+
+                for (int i = 0; i < apps.length(); i++) {
+                    final JSONObject item = apps.optJSONObject(i);
+                    if (item == null) continue;
+                    final String url = item.optString("url", "");
+                    if (!url.startsWith("http")) continue;
+                    String label = item.optString("nama", "Aplikasi");
+                    String versi = item.optString("versi", "");
+                    if (!versi.isEmpty()) label = label + " " + versi;
+                    addButton(label, new View.OnClickListener() {
+                        public void onClick(View v) { download(url, fileNameFrom(url)); }
+                    });
+                }
+
+                addButton("UPDATE POC STORE", new View.OnClickListener() {
+                    public void onClick(View v) { checkSelfUpdate(); }
+                });
+                addButton("ABOUT · irgun.web.id", new View.OnClickListener() {
+                    public void onClick(View v) {
+                        new AlertDialog.Builder(StoreActivity.this)
+                                .setTitle("POC STORE")
+                                .setMessage("POC STORE v1.1\nKatalog diatur di portal.irgun.web.id\n\nirgun.web.id")
+                                .setPositiveButton("OK", null)
+                                .show();
+                    }
+                });
+
+                for (int i = 0; i < nav.size(); i++) {
+                    Button b = nav.get(i);
+                    b.setNextFocusUpId(nav.get((i - 1 + nav.size()) % nav.size()).getId());
+                    b.setNextFocusDownId(nav.get((i + 1) % nav.size()).getId());
+                }
+                status.setText("Katalog: " + source + " · " + apps.length() + " aplikasi");
+                if (!nav.isEmpty()) nav.get(0).requestFocus();
+            }
+        });
+    }
+
+    private void addButton(String label, View.OnClickListener click) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setFocusable(true);
+        b.setClickable(true);
+        b.setTextSize(16f);
+        b.setId(View.generateViewId());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 58);
+        lp.topMargin = 8;
+        b.setLayoutParams(lp);
+        b.setOnClickListener(click);
+        appList.addView(b);
+        nav.add(b);
+    }
+
+    private static String fileNameFrom(String url) {
+        String name = url;
+        int q = name.indexOf('?');
+        if (q > 0) name = name.substring(0, q);
+        int slash = name.lastIndexOf('/');
+        if (slash >= 0) name = name.substring(slash + 1);
+        if (!name.toLowerCase().endsWith(".apk")) name = "POC-STORE.apk";
+        return name;
+    }
+
     private void checkSelfUpdate() {
-        status.setText("Mengecek OTA...");
+        status.setText("Mengecek OTA…");
         new Thread(new Runnable() {
             public void run() {
                 final int[] versi = {-1};
@@ -161,7 +218,7 @@ public class StoreActivity extends Activity {
         c.setConnectTimeout(12000);
         c.setReadTimeout(12000);
         c.setRequestMethod("GET");
-        c.setRequestProperty("User-Agent", "POC-STORE/1.0");
+        c.setRequestProperty("User-Agent", "POC-STORE/1.1");
         c.setRequestProperty("Accept", "application/json");
         try {
             BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
@@ -175,13 +232,14 @@ public class StoreActivity extends Activity {
     }
 
     private void moveFocus(int step) {
+        if (nav.isEmpty()) return;
         View cur = getCurrentFocus();
         int idx = -1;
-        for (int i = 0; i < BUTTON_IDS.length; i++) {
-            if (cur != null && cur.getId() == BUTTON_IDS[i]) { idx = i; break; }
+        for (int i = 0; i < nav.size(); i++) {
+            if (nav.get(i) == cur) { idx = i; break; }
         }
-        idx = (idx < 0 ? 0 : (idx + step + BUTTON_IDS.length) % BUTTON_IDS.length);
-        findViewById(BUTTON_IDS[idx]).requestFocus();
+        idx = (idx < 0 ? 0 : (idx + step + nav.size()) % nav.size());
+        nav.get(idx).requestFocus();
     }
 
     @Override
@@ -196,7 +254,7 @@ public class StoreActivity extends Activity {
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT:
-                return true; // navigasi hanya atas/bawah
+                return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER: {
                 View v = getCurrentFocus();

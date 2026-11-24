@@ -18,28 +18,14 @@
         android:id="@+id/status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Siap · github.com/irgunawan"
+        android:text="Memuat katalog dari portal…"
         android:textSize="12sp"
         android:gravity="center"
         android:paddingBottom="10dp" />
 
-    <Button android:id="@+id/btnDial" android:text="@string/btn_dial"
-        android:layout_width="match_parent" android:layout_height="58dp"
-        android:focusable="true" android:clickable="true" android:textSize="16sp"
-        android:nextFocusUp="@id/btnAbout" android:nextFocusDown="@id/btnPttin" />
-
-    <Button android:id="@+id/btnPttin" android:text="@string/btn_pttin"
-        android:layout_width="match_parent" android:layout_height="58dp"
-        android:layout_marginTop="8dp" android:focusable="true" android:clickable="true"
-        android:textSize="16sp" android:nextFocusUp="@id/btnDial" android:nextFocusDown="@id/btnUpdate" />
-
-    <Button android:id="@+id/btnUpdate" android:text="@string/btn_update"
-        android:layout_width="match_parent" android:layout_height="58dp"
-        android:layout_marginTop="8dp" android:focusable="true" android:clickable="true"
-        android:textSize="16sp" android:nextFocusUp="@id/btnPttin" android:nextFocusDown="@id/btnAbout" />
-
-    <Button android:id="@+id/btnAbout" android:text="@string/btn_about"
-        android:layout_width="match_parent" android:layout_height="58dp"
-        android:layout_marginTop="8dp" android:focusable="true" android:clickable="true"
-        android:textSize="16sp" android:nextFocusUp="@id/btnUpdate" android:nextFocusDown="@id/btnDial" />
+    <LinearLayout
+        android:id="@+id/appList"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 </LinearLayout>

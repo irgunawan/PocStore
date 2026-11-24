@@ -17,7 +17,7 @@ Terhubung ke GitHub `irgunawan` untuk mengunduh aplikasi, dan punya pembaruan OT
 |---|---|
 | POC DIAL 1.0 | GitHub `irgunawan/PocDial` (raw APK) |
 | PTTin 1.7.0 | OTA `ota.irgun.web.id` |
-| POC STORE | OTA (self-update) |
+| POC STORE 1.1 | OTA (self-update) |
 
 ## Build
 
@@ -30,4 +30,4 @@ export KEYPASS_FILE=/path/to/keypass.txt
 ./build.sh
 ```
 
-APK siap pakai: [`apk/POC-STORE-v1.0.apk`](apk/POC-STORE-v1.0.apk).
+APK siap pakai: [`apk/POC-STORE-v1.1.apk`](apk/POC-STORE-v1.1.apk).
