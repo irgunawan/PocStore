@@ -3,7 +3,10 @@ package com.pocindonesia.pocstore;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.IntentFilter;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -24,7 +27,7 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 3;
     private static final String CATALOG_URL = "https://portal.irgun.web.id/api/pocstore";
     private static final String GITHUB_APK_LIST =
             "https://api.github.com/repos/irgunawan/PocDial/contents/apk";
@@ -36,7 +39,27 @@ public class StoreActivity extends Activity {
     private TextView status;
     private LinearLayout appList;
     private DownloadManager downloadManager;
-    private final java.util.ArrayList<Button> nav = new java.util.ArrayList<Button>();
+    private final java.util.ArrayList<View> nav = new java.util.ArrayList<View>();
+    private final BroadcastReceiver downloadDone = new DownloadReceiver();
+    private static volatile boolean sActive = false;
+
+    static boolean isActive() { return sActive; }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sActive = true;
+        try {
+            registerReceiver(downloadDone, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+        } catch (Throwable ignored) {}
+    }
+
+    @Override
+    protected void onPause() {
+        sActive = false;
+        try { unregisterReceiver(downloadDone); } catch (Throwable ignored) {}
+        super.onPause();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,16 +142,16 @@ public class StoreActivity extends Activity {
                     public void onClick(View v) {
                         new AlertDialog.Builder(StoreActivity.this)
                                 .setTitle("POC STORE")
-                                .setMessage("POC STORE v1.1\nKatalog diatur di portal.irgun.web.id\n\nirgun.web.id")
+                                .setMessage("POC STORE v1.2\nKatalog diatur di portal.irgun.web.id\n\nirgun.web.id")
                                 .setPositiveButton("OK", null)
                                 .show();
                     }
                 });
 
                 for (int i = 0; i < nav.size(); i++) {
-                    Button b = nav.get(i);
-                    b.setNextFocusUpId(nav.get((i - 1 + nav.size()) % nav.size()).getId());
-                    b.setNextFocusDownId(nav.get((i + 1) % nav.size()).getId());
+                    View row = nav.get(i);
+                    row.setNextFocusUpId(nav.get((i - 1 + nav.size()) % nav.size()).getId());
+                    row.setNextFocusDownId(nav.get((i + 1) % nav.size()).getId());
                 }
                 status.setText("Katalog: " + source + " · " + apps.length() + " aplikasi");
                 if (!nav.isEmpty()) nav.get(0).requestFocus();
@@ -137,19 +160,27 @@ public class StoreActivity extends Activity {
     }
 
     private void addButton(String label, View.OnClickListener click) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setFocusable(true);
-        b.setClickable(true);
-        b.setTextSize(16f);
-        b.setId(View.generateViewId());
+        TextView row = new TextView(this);
+        row.setText(label);
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setTextSize(15f);
+        row.setTextColor(Color.rgb(33, 33, 33));
+        row.setBackgroundColor(Color.TRANSPARENT);
+        row.setPadding(14, 12, 14, 12);
+        row.setId(View.generateViewId());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 58);
-        lp.topMargin = 8;
-        b.setLayoutParams(lp);
-        b.setOnClickListener(click);
-        appList.addView(b);
-        nav.add(b);
+                LinearLayout.LayoutParams.MATCH_PARENT, 46);
+        row.setLayoutParams(lp);
+        row.setOnClickListener(click);
+        appList.addView(row);
+        nav.add(row);
+
+        View divider = new View(this);
+        divider.setBackgroundColor(Color.rgb(221, 221, 221));
+        divider.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1));
+        appList.addView(divider);
     }
 
     private static String fileNameFrom(String url) {
