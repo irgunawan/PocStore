@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">POC STORE</string>
+    <string name="status_loading">Memuat katalog…</string>
     <string name="btn_dial">POC DIAL 1.0</string>
     <string name="btn_pttin">PTTin 1.7.0</string>
     <string name="btn_update">UPDATE POC STORE</string>
     <string name="btn_about">ABOUT · irgun.web.id</string>
-    <string name="about_text">POC STORE v1.0\nToko aplikasi POC Indonesia.\nSumber: github.com/irgunawan\n\nirgun.web.id</string>
+    <string name="about_text">POC STORE v1.5\nToko aplikasi POC Indonesia.\nSumber: github.com/irgunawan\n\nirgun.web.id</string>
 </resources>

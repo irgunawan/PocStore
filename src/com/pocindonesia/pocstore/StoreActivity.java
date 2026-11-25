@@ -7,6 +7,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.graphics.Color;
+import android.text.TextUtils;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -27,7 +30,7 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 5;
+    private static final int CURRENT_VERSION = 6;
     private static final String CATALOG_URL = "https://portal.irgun.web.id/api/pocstore";
     private static final String GITHUB_APK_LIST =
             "https://api.github.com/repos/irgunawan/PocDial/contents/apk";
@@ -38,6 +41,26 @@ public class StoreActivity extends Activity {
 
     private TextView status;
     private LinearLayout appList;
+    /* Layar radio POC (mis. Hytera PNC360S: 128x160 px @120dpi = 170x213dp).
+       resources -small sudah mengecilkan @dimen, ini jaring pengaman kalau
+       perangkat mengklasifikasi dirinya lain. */
+    private boolean tinyScreen;
+
+    private boolean detectTiny() {
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        float wDp = dm.widthPixels / dm.density;
+        float hDp = dm.heightPixels / dm.density;
+        return wDp < 220f || hDp < 300f;
+    }
+
+    private int dp(float v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    private float sp(float v) {
+        return android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, v,
+                getResources().getDisplayMetrics());
+    }
     private DownloadManager downloadManager;
     private final java.util.ArrayList<View> nav = new java.util.ArrayList<View>();
     private final BroadcastReceiver downloadDone = new DownloadReceiver();
@@ -65,8 +88,18 @@ public class StoreActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_store);
+        tinyScreen = detectTiny();
         status = (TextView) findViewById(R.id.status);
         appList = (LinearLayout) findViewById(R.id.appList);
+        if (tinyScreen) {
+            TextView title = (TextView) findViewById(R.id.title);
+            if (title != null) title.setTextSize(TypedValue.COMPLEX_UNIT_PX, sp(12f));
+            status.setTextSize(TypedValue.COMPLEX_UNIT_PX, sp(8f));
+            View root = appList.getRootView();
+            int p = dp(4);
+            appList.setPadding(0, 0, 0, 0);
+            if (root instanceof android.view.ViewGroup) ((android.view.ViewGroup) root).setPadding(p, p, p, p);
+        }
         downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
         loadCatalog();
     }
@@ -135,14 +168,14 @@ public class StoreActivity extends Activity {
                     });
                 }
 
-                addButton("UPDATE POC STORE", new View.OnClickListener() {
+                addButton(getString(R.string.btn_update), new View.OnClickListener() {
                     public void onClick(View v) { checkSelfUpdate(); }
                 });
-                addButton("ABOUT · irgun.web.id", new View.OnClickListener() {
+                addButton(getString(R.string.btn_about), new View.OnClickListener() {
                     public void onClick(View v) {
                         new AlertDialog.Builder(StoreActivity.this)
                                 .setTitle("POC STORE")
-                                .setMessage("POC STORE v1.2\nKatalog diatur di portal.irgun.web.id\n\nirgun.web.id")
+                                .setMessage(getString(R.string.about_text))
                                 .setPositiveButton("OK", null)
                                 .show();
                     }
@@ -153,24 +186,41 @@ public class StoreActivity extends Activity {
                     row.setNextFocusUpId(nav.get((i - 1 + nav.size()) % nav.size()).getId());
                     row.setNextFocusDownId(nav.get((i + 1) % nav.size()).getId());
                 }
-                status.setText("Katalog: " + source + " · " + apps.length() + " aplikasi");
+                status.setText(source + " · " + apps.length() + " app");
                 if (!nav.isEmpty()) nav.get(0).requestFocus();
             }
         });
     }
 
     private void addButton(String label, View.OnClickListener click) {
+        final android.content.res.Resources res = getResources();
+        int padH = res.getDimensionPixelSize(R.dimen.row_pad_h);
+        int padV = res.getDimensionPixelSize(R.dimen.row_pad_v);
+        float textPx = res.getDimension(R.dimen.row_text_size);
+        int minH = res.getDimensionPixelSize(R.dimen.row_min_height);
+        if (tinyScreen) {                    // prioritas untuk layar 128x160
+            padH = dp(5f);
+            padV = dp(4f);
+            minH = dp(22f);
+            textPx = sp(10f);
+        }
+
         TextView row = new TextView(this);
         row.setText(label);
         row.setFocusable(true);
         row.setClickable(true);
-        row.setTextSize(15f);
-        row.setTextColor(Color.rgb(33, 33, 33));
-        row.setBackgroundColor(Color.TRANSPARENT);
-        row.setPadding(14, 12, 14, 12);
+        row.setFocusableInTouchMode(false);
+        row.setTextSize(TypedValue.COMPLEX_UNIT_PX, textPx);
+        row.setTextColor(res.getColorStateList(R.color.row_text));
+        row.setBackgroundResource(R.drawable.row_bg);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setSingleLine(true);
+        row.setEllipsize(TextUtils.TruncateAt.END);
+        row.setPadding(padH, padV, padH, padV);
+        row.setMinHeight(minH);
         row.setId(View.generateViewId());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 46);
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         row.setLayoutParams(lp);
         row.setOnClickListener(click);
         appList.addView(row);

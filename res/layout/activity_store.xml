@@ -1,31 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<!-- Ukuran mengikuti @dimen agar layar 128x160 (radio POC) tidak terpotong. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="14dp">
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="POC STORE"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:paddingBottom="4dp" />
-
-    <TextView
-        android:id="@+id/status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Memuat katalog dari portal…"
-        android:textSize="12sp"
-        android:gravity="center"
-        android:paddingBottom="10dp" />
+    android:fillViewport="true"
+    android:scrollbarStyle="insideOverlay"
+    android:background="#F5F5F5">
 
     <LinearLayout
-        android:id="@+id/appList"
         android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
-</LinearLayout>
+        android:layout_height="wrap_content"
+        android:padding="@dimen/pad_screen">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textSize="@dimen/title_size"
+            android:textStyle="bold"
+            android:textColor="#111111"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:paddingBottom="@dimen/gap_title" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/status_loading"
+            android:textSize="@dimen/status_size"
+            android:textColor="#6B7280"
+            android:gravity="center"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:paddingBottom="@dimen/gap_status" />
+
+        <LinearLayout
+            android:id="@+id/appList"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+</ScrollView>

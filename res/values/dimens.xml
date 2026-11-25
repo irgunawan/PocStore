@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nilai default (layar normal). Varian kecil ada di values-sw180dp/. -->
+<resources>
+    <dimen name="pad_screen">14dp</dimen>
+    <dimen name="gap_title">4dp</dimen>
+    <dimen name="gap_status">10dp</dimen>
+    <dimen name="title_size">22sp</dimen>
+    <dimen name="status_size">12sp</dimen>
+    <dimen name="row_text_size">15sp</dimen>
+    <dimen name="row_pad_h">14dp</dimen>
+    <dimen name="row_pad_v">11dp</dimen>
+    <dimen name="row_min_height">44dp</dimen>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layar sangat kecil: radio POC 128x160 px @120dpi (~170x213dp), mis. Hytera PNC360S. -->
+<resources>
+    <dimen name="pad_screen">4dp</dimen>
+    <dimen name="gap_title">1dp</dimen>
+    <dimen name="gap_status">3dp</dimen>
+    <dimen name="title_size">12sp</dimen>
+    <dimen name="status_size">8sp</dimen>
+    <dimen name="row_text_size">10sp</dimen>
+    <dimen name="row_pad_h">5dp</dimen>
+    <dimen name="row_pad_v">4dp</dimen>
+    <dimen name="row_min_height">22dp</dimen>
+</resources>
