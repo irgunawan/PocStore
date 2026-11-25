@@ -5,8 +5,10 @@
     <string name="btn_dial">POC DIAL 1.0</string>
     <string name="btn_pttin">PTTin 1.7.0</string>
     <string name="btn_update">UPDATE POC STORE</string>
+    <string name="btn_install_last">PASANG UNDUHAN TERAKHIR</string>
+    <string name="btn_catalog">KATALOG RADIO</string>
     <string name="btn_about">About</string>
     <string name="about_desc">Kumpulan aplikasi khusus radio POC</string>
     <string name="about_source">ota.irgun.web.id</string>
-    <string name="about_text">POC STORE v1.8\nKumpulan aplikasi khusus radio POC\n\nSumber: ota.irgun.web.id</string>
+    <string name="about_text">POC STORE v2.0\nKumpulan aplikasi khusus radio POC\n\nSumber: ota.irgun.web.id</string>
 </resources>

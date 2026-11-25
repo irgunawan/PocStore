@@ -62,32 +62,23 @@ public class DownloadReceiver extends BroadcastReceiver {
             return;
         }
 
-        Intent install = new Intent(Intent.ACTION_VIEW);
-        install.setDataAndType(uri, "application/vnd.android.package-archive");
-        install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        try {
-            android.content.pm.PackageManager pm = context.getPackageManager();
-            for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(install, 0)) {
-                context.grantUriPermission(ri.activityInfo.packageName, uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            }
-        } catch (Throwable ignored) {}
+        // Simpan referensi untuk tombol "PASANG UNDUHAN TERAKHIR".
+        sp.edit().putLong("last_done_id", id).apply();
 
-        // Android 8+ melarang Activity start dari background; pakai notifikasi yang
-        // diketuk pengguna supaya proses instalasi tetap berjalan.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            showInstallNotification(context, install);
-            return;
-        }
-        try {
-            context.startActivity(install);
-        } catch (Throwable t) {
-            showInstallNotification(context, install);
+        if (StoreActivity.isActive()) {
+            // Aplikasi sedang di depan — Android mengizinkan Activity start langsung.
+            // (Flag isActive() dulu ada tetapi tidak pernah dipakai.)
+            boolean started = Installer.install(context, uri);
+            if (!started) showInstallNotification(context, uri);
+        } else {
+            // Android 8+ melarang start Activity dari background. Notifikasi
+            // membuka InstallActivity milik sendiri, yang mengecek izin install
+            // di foreground sebelum meneruskan ke package installer.
+            showInstallNotification(context, uri);
         }
     }
 
-    private static void showInstallNotification(Context context, Intent install) {
+    private static void showInstallNotification(Context context, Uri uri) {
         NotificationManager nm =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
@@ -96,9 +87,12 @@ public class DownloadReceiver extends BroadcastReceiver {
                     CHANNEL, "Unduhan POC Store", NotificationManager.IMPORTANCE_HIGH);
             nm.createNotificationChannel(ch);
         }
+        Intent launch = new Intent(context, InstallActivity.class);
+        launch.setData(uri);
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        PendingIntent pi = PendingIntent.getActivity(context, 100, install, flags);
+        PendingIntent pi = PendingIntent.getActivity(context, 100, launch, flags);
 
         Notification.Builder b;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

@@ -5,6 +5,8 @@ import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.database.Cursor;
+import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
 import android.text.TextUtils;
@@ -31,10 +33,14 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 9;
+    private static final int CURRENT_VERSION = 10;
     /* Sumber utama: katalog OTA. Isinya diturunkan langsung dari APK yang
        dipublikasikan (versi + sha256 + URL), jadi daftar selalu menunjuk build terbaru. */
     private static final String OTA_CATALOG = "https://ota.irgun.web.id/check.php";
+    /* Rujukan tunggal model/layar/density radio POC: repo irgunawan/list-poc-model.
+       Jangan menambahkan daftar model hardcode di APK ini. */
+    private static final String DEVICE_CATALOG_URL =
+            "https://portal.irgun.web.id/files/list-poc-model.xlsx";
     private static final String PORTAL_CATALOG = "https://portal.irgun.web.id/api/pocstore";
     private static final String SELF_PKG = "com.pocindonesia.pocstore";
 
@@ -245,6 +251,20 @@ public class StoreActivity extends Activity {
                     });
                 }
 
+                addButton(getString(R.string.btn_install_last), new View.OnClickListener() {
+                    public void onClick(View v) { pasangUnduhanTerakhir(); }
+                });
+                addButton(getString(R.string.btn_catalog), new View.OnClickListener() {
+                    public void onClick(View v) {
+                        try {
+                            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(DEVICE_CATALOG_URL));
+                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(i);
+                        } catch (Throwable t) {
+                            Toast.makeText(StoreActivity.this, DEVICE_CATALOG_URL, Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
                 addButton(getString(R.string.btn_about), new View.OnClickListener() {
                     public void onClick(View v) { showAbout(); }
                 });
@@ -356,6 +376,42 @@ public class StoreActivity extends Activity {
         } catch (Throwable t) {
             Toast.makeText(this, "Gagal: " + t.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    /** Jalur pemulihan: pasang APK hasil unduhan terakhir (misal setelah izin dinyalakan). */
+    private void pasangUnduhanTerakhir() {
+        try {
+            java.io.File f = ApkProvider.file(this);
+            if (f.exists() && f.length() > 0) {
+                Installer.install(this, ApkProvider.uriFor(this));
+                return;
+            }
+        } catch (Throwable ignored) {}
+
+        long id = getSharedPreferences("store", MODE_PRIVATE).getLong("last_done_id", -1);
+        if (id < 0 || downloadManager == null) {
+            Toast.makeText(this, "Belum ada unduhan — pilih aplikasi dulu", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        DownloadManager.Query q = new DownloadManager.Query();
+        q.setFilterById(id);
+        Cursor c = downloadManager.query(q);
+        Uri uri = null;
+        try {
+            if (c != null && c.moveToFirst()) {
+                int st = c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                if (st == DownloadManager.STATUS_SUCCESSFUL) {
+                    uri = downloadManager.getUriForDownloadedFile(id);
+                }
+            }
+        } finally {
+            if (c != null) c.close();
+        }
+        if (uri == null) {
+            Toast.makeText(this, "Berkas belum siap — unduh lagi", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Installer.install(this, uri);
     }
 
     private static String httpGet(String url) throws Exception {
