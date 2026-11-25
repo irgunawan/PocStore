@@ -27,7 +27,7 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 3;
+    private static final int CURRENT_VERSION = 5;
     private static final String CATALOG_URL = "https://portal.irgun.web.id/api/pocstore";
     private static final String GITHUB_APK_LIST =
             "https://api.github.com/repos/irgunawan/PocDial/contents/apk";
