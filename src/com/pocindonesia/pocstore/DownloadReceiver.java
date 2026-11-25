@@ -49,8 +49,18 @@ public class DownloadReceiver extends BroadcastReceiver {
             return;
         }
 
-        Uri uri = dm.getUriForDownloadedFile(id);
-        if (uri == null) return;
+        /* Berkas ditulis ke getExternalFilesDir aplikasi; installer diambil lewat
+           provider sendiri supaya tidak perlu izin storage sama sekali. */
+        Uri uri = null;
+        try {
+            java.io.File f = ApkProvider.file(context);
+            if (f.exists() && f.length() > 0) uri = ApkProvider.uriFor(context);
+        } catch (Throwable ignored) {}
+        if (uri == null) uri = dm.getUriForDownloadedFile(id);
+        if (uri == null) {
+            Toast.makeText(context, "Berkas APK tidak ditemukan", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         Intent install = new Intent(Intent.ACTION_VIEW);
         install.setDataAndType(uri, "application/vnd.android.package-archive");

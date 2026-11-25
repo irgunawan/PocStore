@@ -11,6 +11,7 @@ import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.KeyEvent;
@@ -30,7 +31,7 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 6;
+    private static final int CURRENT_VERSION = 7;
     private static final String CATALOG_URL = "https://portal.irgun.web.id/api/pocstore";
     private static final String GITHUB_APK_LIST =
             "https://api.github.com/repos/irgunawan/PocDial/contents/apk";
@@ -101,6 +102,14 @@ public class StoreActivity extends Activity {
             if (root instanceof android.view.ViewGroup) ((android.view.ViewGroup) root).setPadding(p, p, p, p);
         }
         downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                if (checkSelfPermission("android.permission.POST_NOTIFICATIONS")
+                        != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 2001);
+                }
+            } catch (Throwable ignored) {}
+        }
         loadCatalog();
     }
 
@@ -279,15 +288,31 @@ public class StoreActivity extends Activity {
     }
 
     private void download(String url, String name) {
-        if (downloadManager == null) return;
+        if (downloadManager == null) {
+            Toast.makeText(this, "DownloadManager tidak tersedia", Toast.LENGTH_LONG).show();
+            return;
+        }
         try {
+            /* Tulis ke direktori aplikasi sendiri: tidak butuh WRITE_EXTERNAL_STORAGE,
+               dan itulah yang gagal di PNC360S ("No permission to write .../Download"). */
+            java.io.File target = ApkProvider.file(this);
+            if (target.exists() && !target.delete()) {
+                Toast.makeText(this, "Berkas unduhan lama tak bisa dihapus", Toast.LENGTH_SHORT).show();
+            }
             DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
             req.setTitle("Mengunduh " + name);
             req.setDescription("POC STORE · irgun.web.id");
-            req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+            req.setMimeType("application/vnd.android.package-archive");
+            try {
+                req.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS,
+                        ApkProvider.FILE_NAME);
+            } catch (Throwable ignored) { /* receiver akan pakai URI dari DownloadManager */ }
             req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             long id = downloadManager.enqueue(req);
-            getSharedPreferences("store", MODE_PRIVATE).edit().putLong("last_id", id).apply();
+            getSharedPreferences("store", MODE_PRIVATE).edit()
+                    .putLong("last_id", id)
+                    .putString("last_name", name)
+                    .apply();
             Toast.makeText(this, "Mengunduh " + name, Toast.LENGTH_SHORT).show();
         } catch (Throwable t) {
             Toast.makeText(this, "Gagal: " + t.getMessage(), Toast.LENGTH_LONG).show();
