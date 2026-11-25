@@ -31,7 +31,7 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 8;
+    private static final int CURRENT_VERSION = 9;
     /* Sumber utama: katalog OTA. Isinya diturunkan langsung dari APK yang
        dipublikasikan (versi + sha256 + URL), jadi daftar selalu menunjuk build terbaru. */
     private static final String OTA_CATALOG = "https://ota.irgun.web.id/check.php";
@@ -91,7 +91,7 @@ public class StoreActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        new CrashReporter(this, "POC STORE", "1.8").install();
+        new CrashReporter(this, "POC STORE", "1.9").install();
         setContentView(R.layout.activity_store);
         tinyScreen = detectTiny();
         status = (TextView) findViewById(R.id.status);
@@ -178,8 +178,27 @@ public class StoreActivity extends Activity {
                 return c != 0 ? c : a.optString("nama").compareToIgnoreCase(b.optString("nama"));
             }
         });
+        /* Dua paket bisa berisi aplikasi yang sama (mis. com.pocindonesia.pocdialer
+           dan com.irgun.pocdialer). Tampilkan satu baris saja: kalau namanya sama,
+           pilih versi tertinggi; kalau seri, pilih paket yang sudah terpasang. */
+        java.util.LinkedHashMap<String, JSONObject> uniq = new java.util.LinkedHashMap<String, JSONObject>();
+        for (JSONObject o : items) {
+            String key = o.optString("nama") + "|";
+            JSONObject ada = uniq.get(key);
+            if (ada == null) {
+                uniq.put(key, o);
+                continue;
+            }
+            int codeBaru = o.optInt("code", 0), codeAda = ada.optInt("code", 0);
+            if (codeBaru > codeAda) {
+                uniq.put(key, o);
+            } else if (codeBaru == codeAda) {
+                String pkgBaru = o.optString("pkg"), pkgAda = ada.optString("pkg");
+                if (installedVersion(pkgAda) < 0 && installedVersion(pkgBaru) >= 0) uniq.put(key, o);
+            }
+        }
         JSONArray out = new JSONArray();
-        for (JSONObject o : items) out.put(o);
+        for (JSONObject o : uniq.values()) out.put(o);
         return out;
     }
 
