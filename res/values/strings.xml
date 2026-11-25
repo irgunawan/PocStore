@@ -5,6 +5,8 @@
     <string name="btn_dial">POC DIAL 1.0</string>
     <string name="btn_pttin">PTTin 1.7.0</string>
     <string name="btn_update">UPDATE POC STORE</string>
-    <string name="btn_about">ABOUT · irgun.web.id</string>
-    <string name="about_text">POC STORE v1.6\nToko aplikasi POC Indonesia.\nSumber: github.com/irgunawan\n\nirgun.web.id</string>
+    <string name="btn_about">About</string>
+    <string name="about_desc">Kumpulan aplikasi khusus radio POC</string>
+    <string name="about_source">ota.irgun.web.id</string>
+    <string name="about_text">POC STORE v1.8\nKumpulan aplikasi khusus radio POC\n\nSumber: ota.irgun.web.id</string>
 </resources>

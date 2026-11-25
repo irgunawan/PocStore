@@ -31,14 +31,12 @@ import java.net.URL;
 
 public class StoreActivity extends Activity {
 
-    private static final int CURRENT_VERSION = 7;
-    private static final String CATALOG_URL = "https://portal.irgun.web.id/api/pocstore";
-    private static final String GITHUB_APK_LIST =
-            "https://api.github.com/repos/irgunawan/PocDial/contents/apk";
-    private static final String FALLBACK_DIAL_URL =
-            "https://raw.githubusercontent.com/irgunawan/PocDial/master/apk/POC-DIAL-v1.0.apk";
-    private static final String OTA_CHECK =
-            "https://ota.irgun.web.id/check.php?pkg=com.pocindonesia.pocstore";
+    private static final int CURRENT_VERSION = 8;
+    /* Sumber utama: katalog OTA. Isinya diturunkan langsung dari APK yang
+       dipublikasikan (versi + sha256 + URL), jadi daftar selalu menunjuk build terbaru. */
+    private static final String OTA_CATALOG = "https://ota.irgun.web.id/check.php";
+    private static final String PORTAL_CATALOG = "https://portal.irgun.web.id/api/pocstore";
+    private static final String SELF_PKG = "com.pocindonesia.pocstore";
 
     private TextView status;
     private LinearLayout appList;
@@ -69,10 +67,15 @@ public class StoreActivity extends Activity {
 
     static boolean isActive() { return sActive; }
 
+    private boolean firstResume = true;
+
     @Override
     protected void onResume() {
         super.onResume();
         sActive = true;
+        /* Setiap kembali ke depan: ambil katalog terbaru dari OTA. */
+        if (!firstResume) loadCatalog();
+        firstResume = false;
         try {
             registerReceiver(downloadDone, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
         } catch (Throwable ignored) {}
@@ -88,7 +91,7 @@ public class StoreActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        new CrashReporter(this, "POC STORE", "1.6").install();
+        new CrashReporter(this, "POC STORE", "1.8").install();
         setContentView(R.layout.activity_store);
         tinyScreen = detectTiny();
         status = (TextView) findViewById(R.id.status);
@@ -115,48 +118,82 @@ public class StoreActivity extends Activity {
     }
 
     private void loadCatalog() {
-        status.setText("Memuat katalog dari portal…");
+        status.setText("Memuat katalog OTA…");
         new Thread(new Runnable() {
             public void run() {
                 JSONArray apps = null;
-                String source = "portal.irgun.web.id";
+                String source = "ota.irgun.web.id";
                 try {
-                    String body = httpGet(CATALOG_URL);
-                    apps = new JSONObject(body).optJSONArray("apps");
+                    apps = catalogFromOta();
                 } catch (Throwable ignored) {}
 
                 if (apps == null || apps.length() == 0) {
-                    source = "GitHub (cadangan)";
-                    apps = new JSONArray();
+                    source = "portal.irgun.web.id";
                     try {
-                        JSONArray files = new JSONArray(httpGet(GITHUB_APK_LIST));
-                        for (int i = 0; i < files.length(); i++) {
-                            JSONObject o = files.getJSONObject(i);
-                            String nm = o.optString("name", "");
-                            String url = o.optString("download_url", "");
-                            if (nm.endsWith(".apk") && url.length() > 0) {
+                        JSONArray list = new JSONObject(httpGet(PORTAL_CATALOG)).optJSONArray("apps");
+                        apps = new JSONArray();
+                        if (list != null) {
+                            for (int i = 0; i < list.length(); i++) {
+                                JSONObject o = list.optJSONObject(i);
+                                if (o == null) continue;
                                 JSONObject item = new JSONObject();
-                                item.put("nama", "POC DIAL");
-                                item.put("versi", "1.0");
-                                item.put("url", url);
+                                item.put("pkg", o.optString("package_name", ""));
+                                item.put("nama", o.optString("nama", "Aplikasi"));
+                                item.put("versi", o.optString("versi", ""));
+                                item.put("code", 0);
+                                item.put("url", o.optString("url", ""));
                                 apps.put(item);
-                                break;
                             }
                         }
                     } catch (Throwable ignored) {}
-                    if (apps.length() == 0) {
-                        try {
-                            JSONObject item = new JSONObject();
-                            item.put("nama", "POC DIAL");
-                            item.put("versi", "1.0");
-                            item.put("url", FALLBACK_DIAL_URL);
-                            apps.put(item);
-                        } catch (Throwable ignored) {}
-                    }
                 }
+                if (apps == null) apps = new JSONArray();
                 renderApps(apps, source);
             }
         }).start();
+    }
+
+    /** Katalog dari OTA: {pkg: {version, version_name, url, name}} -> array terurut versi terbaru. */
+    private JSONArray catalogFromOta() throws Exception {
+        JSONObject all = new JSONObject(httpGet(OTA_CATALOG + "?t=" + System.currentTimeMillis()));
+        if (!all.optBoolean("ok", true)) throw new Exception("ota tidak ok");
+        java.util.List<JSONObject> items = new java.util.ArrayList<JSONObject>();
+        java.util.Iterator<String> keys = all.keys();
+        while (keys.hasNext()) {
+            String pkg = keys.next();
+            if (pkg.equals("ok") || pkg.equals("selected") || pkg.equals("device") || pkg.equals("checked_at")) continue;
+            JSONObject meta = all.optJSONObject(pkg);
+            if (meta == null) continue;
+            JSONObject item = new JSONObject();
+            item.put("pkg", pkg);
+            item.put("nama", meta.optString("name", pkg));
+            item.put("versi", meta.optString("version_name", ""));
+            item.put("code", meta.optInt("version", 0));
+            item.put("url", meta.optString("url", ""));
+            items.add(item);
+        }
+        java.util.Collections.sort(items, new java.util.Comparator<JSONObject>() {
+            public int compare(JSONObject a, JSONObject b) {
+                int c = b.optInt("code", 0) - a.optInt("code", 0);
+                return c != 0 ? c : a.optString("nama").compareToIgnoreCase(b.optString("nama"));
+            }
+        });
+        JSONArray out = new JSONArray();
+        for (JSONObject o : items) out.put(o);
+        return out;
+    }
+
+    /** Versi terpasang di perangkat, -1 kalau aplikasi tidak ada. */
+    private int installedVersion(String pkg) {
+        if (pkg == null || pkg.length() == 0) return -1;
+        try {
+            android.content.pm.PackageInfo pi =
+                    getPackageManager().getPackageInfo(pkg, 0);
+            if (Build.VERSION.SDK_INT >= 28) return (int) pi.getLongVersionCode();
+            return pi.versionCode;
+        } catch (Throwable t) {
+            return -1;
+        }
     }
 
     private void renderApps(final JSONArray apps, final String source) {
@@ -170,25 +207,27 @@ public class StoreActivity extends Activity {
                     if (item == null) continue;
                     final String url = item.optString("url", "");
                     if (!url.startsWith("http")) continue;
-                    String label = item.optString("nama", "Aplikasi");
+                    String nama = item.optString("nama", "Aplikasi");
                     String versi = item.optString("versi", "");
-                    if (!versi.isEmpty()) label = label + " " + versi;
+                    String pkg = item.optString("pkg", "");
+                    int code = item.optInt("code", 0);
+                    int pasang = installedVersion(pkg);
+
+                    String label;
+                    if (pasang < 0) {
+                        label = "Install · " + nama + (versi.isEmpty() ? "" : " " + versi);
+                    } else if (code > pasang) {
+                        label = "Update · " + nama + (versi.isEmpty() ? "" : " " + versi);
+                    } else {
+                        label = nama + (versi.isEmpty() ? "" : " " + versi) + " · Terpasang";
+                    }
                     addButton(label, new View.OnClickListener() {
                         public void onClick(View v) { download(url, fileNameFrom(url)); }
                     });
                 }
 
-                addButton(getString(R.string.btn_update), new View.OnClickListener() {
-                    public void onClick(View v) { checkSelfUpdate(); }
-                });
                 addButton(getString(R.string.btn_about), new View.OnClickListener() {
-                    public void onClick(View v) {
-                        new AlertDialog.Builder(StoreActivity.this)
-                                .setTitle("POC STORE")
-                                .setMessage(getString(R.string.about_text))
-                                .setPositiveButton("OK", null)
-                                .show();
-                    }
+                    public void onClick(View v) { showAbout(); }
                 });
 
                 for (int i = 0; i < nav.size(); i++) {
@@ -243,6 +282,21 @@ public class StoreActivity extends Activity {
         appList.addView(divider);
     }
 
+    private void showAbout() {
+        String versi = String.valueOf(CURRENT_VERSION);
+        try {
+            versi = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Throwable ignored) {}
+        String pesan = "POC STORE " + versi + "\n"
+                + getString(R.string.about_desc) + "\n\n"
+                + "Sumber: " + getString(R.string.about_source);
+        new AlertDialog.Builder(this)
+                .setTitle("About")
+                .setMessage(pesan)
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
     private static String fileNameFrom(String url) {
         String name = url;
         int q = name.indexOf('?');
@@ -251,41 +305,6 @@ public class StoreActivity extends Activity {
         if (slash >= 0) name = name.substring(slash + 1);
         if (!name.toLowerCase().endsWith(".apk")) name = "POC-STORE.apk";
         return name;
-    }
-
-    private void checkSelfUpdate() {
-        status.setText("Mengecek OTA…");
-        new Thread(new Runnable() {
-            public void run() {
-                final int[] versi = {-1};
-                final String[] url = {""};
-                try {
-                    JSONObject all = new JSONObject(httpGet(OTA_CHECK));
-                    JSONObject self = all.optJSONObject("com.pocindonesia.pocstore");
-                    if (self != null) {
-                        versi[0] = self.optInt("version", -1);
-                        url[0] = self.optString("url", "");
-                    }
-                } catch (Throwable ignored) {}
-
-                final int v = versi[0];
-                final String u = url[0];
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        if (v > CURRENT_VERSION && u.length() > 0) {
-                            status.setText("POC STORE v" + v + " tersedia");
-                            download(u, "POC-STORE-v" + v + ".apk");
-                        } else if (v > 0) {
-                            status.setText("POC STORE sudah versi terbaru");
-                            Toast.makeText(StoreActivity.this, "Sudah versi terbaru", Toast.LENGTH_SHORT).show();
-                        } else {
-                            status.setText("OTA tak terjangkau");
-                            Toast.makeText(StoreActivity.this, "Gagal mengecek OTA", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-            }
-        }).start();
     }
 
     private void download(String url, String name) {
@@ -325,7 +344,10 @@ public class StoreActivity extends Activity {
         c.setConnectTimeout(12000);
         c.setReadTimeout(12000);
         c.setRequestMethod("GET");
-        c.setRequestProperty("User-Agent", "POC-STORE/1.1");
+        c.setUseCaches(false);
+        c.setRequestProperty("Cache-Control", "no-cache, no-store");
+        c.setRequestProperty("Pragma", "no-cache");
+        c.setRequestProperty("User-Agent", "POC-STORE/1.8");
         c.setRequestProperty("Accept", "application/json");
         try {
             BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
