@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Sorotan baris saat fokus DPAD. Default memakai android:drawable agar tetap
+     valid di API 21 (anak <color> baru ada di API 23). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
@@ -10,7 +12,5 @@
             <solid android:color="#E3F2FD" />
         </shape>
     </item>
-    <item>
-        <color android:color="@android:color/transparent" />
-    </item>
+    <item android:drawable="@android:color/transparent" />
 </selector>
