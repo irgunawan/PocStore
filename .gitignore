@@ -7,3 +7,6 @@ classes/
 *.jks
 *.pass
 *.idsig
+
+# hasil build di root (arsip rilis tetap di apk/)
+/*.apk
