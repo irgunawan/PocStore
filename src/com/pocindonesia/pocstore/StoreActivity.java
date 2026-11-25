@@ -88,6 +88,7 @@ public class StoreActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        new CrashReporter(this, "POC STORE", "1.6").install();
         setContentView(R.layout.activity_store);
         tinyScreen = detectTiny();
         status = (TextView) findViewById(R.id.status);
